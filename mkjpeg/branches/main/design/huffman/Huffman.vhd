@@ -86,7 +86,6 @@ architecture RTL of Huffman is
 
   signal state             : T_STATE;
   signal rle_buf_sel_s     : std_logic;
-  signal VLC_VLI_sel       : std_logic;
   signal word_reg          : unsigned(C_M-1 downto 0);
   signal bit_ptr           : unsigned(5 downto 0);
   signal num_fifo_wrs      : unsigned(2 downto 0);
@@ -357,7 +356,6 @@ begin
   begin
     if RST = '1' then
       ready_pb     <= '0';
-      VLC_VLI_sel  <= '0';
       state        <= IDLE;
       word_reg     <= (others => '0');
       bit_ptr      <= (others => '0');
@@ -371,7 +369,6 @@ begin
       
         when IDLE =>
           if start_pb = '1' then
-            VLC_VLI_sel <= '0';
             state       <= RUN_VLC;
           end if;
         
