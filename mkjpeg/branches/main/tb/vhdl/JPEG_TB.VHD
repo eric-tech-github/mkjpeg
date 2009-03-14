@@ -149,41 +149,20 @@ begin
         ram_wraddr         => ram_wraddr    
     );
   
-
-  -------------------------------------------------------------------
-  -- IMAGE RAM
-  -------------------------------------------------------------------
-  U_IRAM : entity work.RAMSIM
-  generic map
-  ( 
-      RAMADDR_W     => 20,
-      RAMDATA_W     => 24
-  )
-  port map
-  (      
-        d           => iram_wdata,
-        waddr       => iram_waddr,
-        raddr       => iram_raddr,
-        we          => iram_wren,
-        clk         => CLK,
-                    
-        q           => iram_rdata
-  ); 
-  
   -------------------------------------------------------------------
   -- OUT RAM
   -------------------------------------------------------------------
   U_OUT_RAM : entity work.RAMSIM
   generic map
   ( 
-      RAMADDR_W     => 16,
+      RAMADDR_W     => 18,
       RAMDATA_W     => 8
   )
   port map
   (      
         d           => ram_byte,
-        waddr       => ram_wraddr(15 downto 0),
-        raddr       => ram_rdaddr(15 downto 0),
+        waddr       => ram_wraddr(17 downto 0),
+        raddr       => ram_rdaddr(17 downto 0),
         we          => ram_wren,
         clk         => CLK,
                     

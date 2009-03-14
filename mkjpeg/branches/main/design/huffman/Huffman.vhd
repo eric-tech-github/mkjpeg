@@ -209,24 +209,23 @@ begin
   -------------------------------------------------------------------
   -- mux for DC/AC ROM
   -------------------------------------------------------------------
-  --p_mux : process(CLK, RST)
-  --begin
-  --  if RST = '1' then
-  --    VLC_size <= (others => '0');
-  --    VLC      <= (others => '0');
-  --  elsif CLK'event and CLK = '1' then
-  --    if read_cnt = 0 then
-  --      VLC_size <= unsigned('0' & VLC_DC_size);
-  --      VLC      <= resize(VLC_DC, VLC'length);
-  --    else
-  --      VLC_size <= VLC_AC_size;
-  --      VLC      <= VLC_AC;
-  --    end if;
-  --  end if;
-  --end process;
+  p_mux : process(CLK, RST)
+  begin
+    if RST = '1' then
+      VLC_size <= (others => '0');
+      VLC      <= (others => '0');
+    elsif CLK'event and CLK = '1' then
+      if dc_idx = '1' then
+        VLC_size <= unsigned('0' & VLC_DC_size);
+        VLC      <= resize(VLC_DC, VLC'length);
+      else
+        VLC_size <= VLC_AC_size;
+        VLC      <= VLC_AC;
+      end if;
+    end if;
+  end process;
   
-  VLC_size <= unsigned('0' & VLC_DC_size) when dc_idx = '1' else VLC_AC_size;
-  VLC      <= resize(VLC_DC, VLC'length) when dc_idx = '1' else VLC_AC;
+  
   
   -------------------------------------------------------------------
   -- Block Counter / Last Block detector
@@ -374,14 +373,27 @@ begin
         
         when RUN_VLC =>
           -- data valid DC or data valid AC
-          if d_val_d1 = '1' then
-            word_reg(C_M-1-to_integer(bit_ptr) downto 
-                     C_M-to_integer(bit_ptr)-to_integer(VLC_size)) <= 
-              VLC(to_integer(VLC_size)-1 downto 0);
+          if d_val_d2 = '1' then
+
+            --word_reg(C_M-1-bit_ptr_v downto C_M-bit_ptr_v-VLC_size_v) <= 
+            --  VLC(VLC_size_v-1 downto 0);
+	      
+            for i in 0 to C_M-1 loop
+              if i < to_integer(VLC_size) then
+                word_reg(C_M-1-to_integer(bit_ptr)-i) <= VLC(to_integer(VLC_size)-1-i);
+              end if;
+            end loop;
               
-            word_reg( (C_M-to_integer(bit_ptr)-to_integer(VLC_size)-1) downto 
-                      (C_M-to_integer(bit_ptr)-to_integer(VLC_size)-to_integer(VLI_ext_size))) <= 
-              VLI_ext(to_integer(VLI_ext_size)-1 downto 0);
+            --word_reg( (C_M-1-bit_ptr_v-VLC_size_v) downto 
+            --          (C_M-bit_ptr_v-VLC_size_v-to_integer(VLI_ext_size))) <= 
+            --  VLI_ext(to_integer(VLI_ext_size)-1 downto 0);
+              
+            for i in 0 to C_M-1 loop
+              if i >= to_integer(VLC_size) and i < to_integer(VLC_size)+to_integer(VLI_ext_size) then
+                word_reg(C_M-1-to_integer(bit_ptr)-i) 
+                  <= VLI_ext(to_integer(VLI_ext_size)-1+to_integer(VLC_size)-i);
+              end if;
+            end loop;
 
             bit_ptr <= bit_ptr + resize(VLC_size,bit_ptr'length) + 
                        resize(VLI_ext_size,bit_ptr'length);
@@ -414,9 +426,15 @@ begin
         when PAD =>
           if HFW_running = '0' then
             -- 1's bit padding to integer number of bytes
-            word_reg(C_M-1-to_integer(bit_ptr) downto 
-                     C_M-to_integer(bit_ptr)-8) <= (others => '1');
+            --word_reg(C_M-1-to_integer(bit_ptr) downto 
+            --         C_M-to_integer(bit_ptr)-8) <= (others => '1');
             
+            for i in 0 to C_M-1 loop        
+              if i < 8 then
+                 word_reg(C_M-1-to_integer(bit_ptr)-i) <= '1';
+              end if;
+            end loop;
+                     
             bit_ptr <= to_unsigned(8, bit_ptr'length);         
 
             -- HandleFifoWrites

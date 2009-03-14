@@ -37,8 +37,8 @@ package MDCTTB_PKG is
     ----------------------------------------------
     -- constant section 1
     ----------------------------------------------
-    constant MAX_IMAGE_SIZE_X : INTEGER := 1024;
-    constant MAX_IMAGE_SIZE_Y : INTEGER := 1024;
+    constant MAX_IMAGE_SIZE_X : INTEGER := 1280;
+    constant MAX_IMAGE_SIZE_Y : INTEGER := 1280;
     ----------------------------------------------
     -- type section
     ----------------------------------------------
