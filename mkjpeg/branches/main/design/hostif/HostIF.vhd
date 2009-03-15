@@ -245,6 +245,7 @@ begin
       end if;
       enc_sts_reg(0) <= jpeg_busy;
       
+      enc_length_reg <= (others => '0');
       enc_length_reg(num_enc_bytes'range) <= num_enc_bytes;
       
     end if;

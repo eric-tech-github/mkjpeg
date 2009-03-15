@@ -79,10 +79,12 @@ end entity Huffman;
 -------------------------------------------------------------------------------
 architecture RTL of Huffman is
 
-  type T_STATE is (IDLE, RUN_VLC, RUN_VLI, PAD);
-  
   constant C_M             : integer := 34;
   constant BLK_SIZE        : integer := 64;
+
+  type T_STATE is (IDLE, RUN_VLC, PAD);
+  type T_VLX_IDX_ARR       is array(0 to C_M-1) of unsigned(4 downto 0);
+  type T_WORD_IDX_ARR      is array(0 to C_M-1) of unsigned(5 downto 0);
 
   signal state             : T_STATE;
   signal rle_buf_sel_s     : std_logic;
@@ -91,7 +93,6 @@ architecture RTL of Huffman is
   signal num_fifo_wrs      : unsigned(2 downto 0);
   signal VLI_ext           : unsigned(15 downto 0);
   signal VLI_ext_size      : unsigned(4 downto 0);
-  signal start_HFW         : std_logic;
   signal ready_HFW         : std_logic;
   signal fifo_wbyte        : std_logic_vector(7 downto 0);
   signal fifo_wrt_cnt      : unsigned(2 downto 0);
@@ -120,6 +121,14 @@ architecture RTL of Huffman is
   signal VLI_size_r        : std_logic_vector(3 downto 0);
   signal VLI_r             : std_logic_vector(11 downto 0);
   signal dc_idx            : std_logic;
+  signal VLC_plus_VLI_size : unsigned(4 downto 0);
+  signal word_idx          : T_WORD_IDX_ARR;
+  signal vlx_idx           : T_VLX_IDX_ARR;
+  signal VLC_d             : unsigned(15 downto 0);
+  signal VLC_size_d        : unsigned(4 downto 0);
+  signal VLI_ext_d         : unsigned(15 downto 0);
+  signal VLI_ext_size_d    : unsigned(4 downto 0);
+  
 -------------------------------------------------------------------------------
 -- Architecture: begin
 -------------------------------------------------------------------------------
@@ -358,12 +367,46 @@ begin
       state        <= IDLE;
       word_reg     <= (others => '0');
       bit_ptr      <= (others => '0');
-      start_HFW    <= '0';
       HFW_running  <= '0';
+      VLC_plus_VLI_size <= (others => '0');
+      VLC_d             <= (others => '0');
+      VLC_size_d        <= (others => '0');
+      VLI_ext_d         <= (others => '0');
+      VLI_ext_size_d    <= (others => '0');
     elsif CLK'event and CLK = '1' then
-      start_HFW <= '0';
       ready_pb  <= '0';
-    
+      
+      VLC_plus_VLI_size <= resize(VLC_size,5) + resize(VLI_ext_size,5);
+      VLC_d             <= VLC;
+      VLC_size_d        <= VLC_size;
+      VLI_ext_d         <= VLI_ext;
+      VLI_ext_size_d    <= VLI_ext_size;
+      
+      for i in 0 to C_M-1 loop
+        if d_val_d2 = '1' then
+          if i < to_integer(VLC_size) then
+            vlx_idx(i) <= resize(VLC_size,vlx_idx(0)'length)-
+                          to_unsigned(1+i,vlx_idx(0)'length);
+            word_idx(i)  <= to_unsigned(C_M-1-i, word_idx(0)'length)-
+                            resize(bit_ptr,word_idx(0)'length);
+          elsif i < VLC_size + VLI_ext_size then
+            vlx_idx(i) <= resize(VLC_size,vlx_idx(0)'length)+
+                          resize(VLI_ext_size,vlx_idx(0)'length)-
+                          to_unsigned(1+i,vlx_idx(0)'length);
+            word_idx(i) <= to_unsigned(C_M-1-i, word_idx(0)'length)-
+                           resize(bit_ptr,word_idx(0)'length);
+          end if;
+        end if;
+        
+        if d_val_d3 = '1' then
+          if i < to_integer(VLC_size_d) then
+            word_reg(to_integer(word_idx(i))) <= VLC_d(to_integer(vlx_idx(i)));
+          elsif i < VLC_plus_VLI_size then
+            word_reg(to_integer(word_idx(i))) <= VLI_ext_d(to_integer(vlx_idx(i)));
+          end if;
+        end if;
+      end loop;
+        
       case state is
       
         when IDLE =>
@@ -373,33 +416,11 @@ begin
         
         when RUN_VLC =>
           -- data valid DC or data valid AC
-          if d_val_d2 = '1' then
-
-            --word_reg(C_M-1-bit_ptr_v downto C_M-bit_ptr_v-VLC_size_v) <= 
-            --  VLC(VLC_size_v-1 downto 0);
-	      
-            for i in 0 to C_M-1 loop
-              if i < to_integer(VLC_size) then
-                word_reg(C_M-1-to_integer(bit_ptr)-i) <= VLC(to_integer(VLC_size)-1-i);
-              end if;
-            end loop;
-              
-            --word_reg( (C_M-1-bit_ptr_v-VLC_size_v) downto 
-            --          (C_M-bit_ptr_v-VLC_size_v-to_integer(VLI_ext_size))) <= 
-            --  VLI_ext(to_integer(VLI_ext_size)-1 downto 0);
-              
-            for i in 0 to C_M-1 loop
-              if i >= to_integer(VLC_size) and i < to_integer(VLC_size)+to_integer(VLI_ext_size) then
-                word_reg(C_M-1-to_integer(bit_ptr)-i) 
-                  <= VLI_ext(to_integer(VLI_ext_size)-1+to_integer(VLC_size)-i);
-              end if;
-            end loop;
-
-            bit_ptr <= bit_ptr + resize(VLC_size,bit_ptr'length) + 
-                       resize(VLI_ext_size,bit_ptr'length);
+          if d_val_d3 = '1' then
+            bit_ptr <= bit_ptr + resize(VLC_size_d,bit_ptr'length) + 
+                       resize(VLI_ext_size_d,bit_ptr'length);
             
             -- HandleFifoWrites
-            start_HFW <= '1';
             HFW_running  <= '1';
           -- HandleFifoWrites completed
           elsif ready_HFW = '1' then
@@ -438,7 +459,6 @@ begin
             bit_ptr <= to_unsigned(8, bit_ptr'length);         
 
             -- HandleFifoWrites
-            start_HFW <= '1';
             HFW_running <= '1';
          elsif ready_HFW = '1' then
            bit_ptr      <= (others => '0');

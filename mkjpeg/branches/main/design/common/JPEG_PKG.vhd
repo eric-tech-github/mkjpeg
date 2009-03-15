@@ -27,6 +27,7 @@ library IEEE;
 package JPEG_PKG is
 
   constant C_HDR_SIZE  : integer      := 338;
+  
   constant C_MAX_LINE_WIDTH : integer := 640;
     
   type T_SM_SETTINGS is record
@@ -41,5 +42,24 @@ package JPEG_PKG is
     (others => '0'),
     (others => '0')
   );
+  
+  function log2(n : natural) return natural;
+  
+end package JPEG_PKG;
 
-end JPEG_PKG;
+package body JPEG_PKG is
+
+  -----------------------------------------------------------------------------
+  function log2(n : natural) 
+  return natural is
+  begin
+    for i in 0 to 31 loop
+      if (2**i) >= n then
+        return i;
+      end if;
+    end loop;
+    return 32;
+  end log2;
+  -----------------------------------------------------------------------------
+
+end package body JPEG_PKG;

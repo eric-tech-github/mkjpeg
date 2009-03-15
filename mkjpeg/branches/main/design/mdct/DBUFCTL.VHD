@@ -51,25 +51,21 @@ begin
   
   memswitchrd_reg <= rmemsel;
 
-  MEM_SWITCH : process(clk)
+  MEM_SWITCH : process(clk,rst)
   begin
-    if clk = '1' and clk'event then
-      if rst = '1' then   
-        memswitchwr_reg <= '0'; -- initially mem 1 is selected
-        dataready       <= '0';
-      else
-  
-        memswitchwr_reg <= wmemsel;
-        
-        if wmemsel /= memswitchwr_reg then
-          dataready <= '1';
-        end if;
-        
-        if datareadyack = '1' then
-          dataready <= '0';
-        end if;
-     
-      end if; 
+    if rst = '1' then   
+      memswitchwr_reg <= '0'; -- initially mem 1 is selected
+      dataready       <= '0';
+    elsif clk = '1' and clk'event then
+      memswitchwr_reg <= wmemsel;
+      
+      if wmemsel /= memswitchwr_reg then
+        dataready <= '1';
+      end if;
+      
+      if datareadyack = '1' then
+        dataready <= '0';
+      end if;
     end if;
   end process;
   

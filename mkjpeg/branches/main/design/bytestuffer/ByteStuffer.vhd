@@ -135,6 +135,7 @@ begin
         -- FIFO empty
         if huf_fifo_empty = '1' then
           rd_en      <= '0';
+          rd_en_d1   <= '0';
           ready_pb   <= '1';
         else
           huf_rd_req_s <= '1';

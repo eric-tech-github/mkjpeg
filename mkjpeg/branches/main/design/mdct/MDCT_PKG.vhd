@@ -56,6 +56,11 @@ package MDCT_PKG is
 	constant FM : INTEGER := -1138;
 	constant GM : INTEGER := -400;
 	
-
+  type T_ROM1DATAO  is array(0 to 8) of STD_LOGIC_VECTOR(ROMDATA_W-1 downto 0);
+  type T_ROM1ADDRO  is array(0 to 8) of STD_LOGIC_VECTOR(ROMADDR_W-1 downto 0);
+  
+  type T_ROM2DATAO  is array(0 to 10) of STD_LOGIC_VECTOR(ROMDATA_W-1 downto 0);
+  type T_ROM2ADDRO  is array(0 to 10) of STD_LOGIC_VECTOR(ROMADDR_W-1 downto 0);
+  
 
 end MDCT_PKG;

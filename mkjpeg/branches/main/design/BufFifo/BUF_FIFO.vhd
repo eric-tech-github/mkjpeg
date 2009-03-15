@@ -90,6 +90,7 @@ architecture RTL of BUF_FIFO is
   signal pixel_cnt        : unsigned(15 downto 0);
   signal wblock_cnt       : unsigned(12 downto 0);
   signal last_idx         : unsigned(12 downto 0);
+  signal idx_reg          : unsigned(log2(C_NUM_SUBF)-1 downto 0);
   
 -------------------------------------------------------------------------------
 -- Architecture: begin
@@ -202,7 +203,7 @@ begin
       end loop;
     elsif CLK'event and CLK = '1' then
       for i in 0 to C_NUM_SUBF-1 loop
-        if wblock_cnt = i then
+        if wblock_cnt(log2(C_NUM_SUBF)-1 downto 0) = i then
           fifo_wr(i) <= iram_wren;
         else
           fifo_wr(i) <= '0';
@@ -225,17 +226,21 @@ begin
       fdct_fifo_empty <= '0';
       fdct_fifo_q     <= (others => '0');
       fdct_fifo_hf_full    <= '0';
+      idx_reg              <= (others => '0');
     elsif CLK'event and CLK = '1' then
+      idx_reg <= unsigned(fdct_block_cnt(log2(C_NUM_SUBF)-1 downto 0));
+    
       for i in 0 to C_NUM_SUBF-1 loop
-        if unsigned(fdct_block_cnt) = i then
+        if idx_reg = i then
           fifo_rd(i)      <= fdct_fifo_rd;
-          fdct_fifo_empty <= fifo_empty(i);
-          fdct_fifo_q     <= fifo_q(i);
-          fdct_fifo_hf_full <= fifo_half_full(i);
         else
           fifo_rd(i) <= '0';
         end if;
       end loop;
+
+      fdct_fifo_empty   <= fifo_empty(to_integer(idx_reg));
+      fdct_fifo_q       <= fifo_q(to_integer(idx_reg));
+      fdct_fifo_hf_full <= fifo_half_full(to_integer(idx_reg));
     end if;
   end process;
   
