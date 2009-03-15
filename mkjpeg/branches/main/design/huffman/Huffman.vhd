@@ -396,9 +396,7 @@ begin
             word_idx(i) <= to_unsigned(C_M-1-i, word_idx(0)'length)-
                            resize(bit_ptr,word_idx(0)'length);
           end if;
-        end if;
-        
-        if d_val_d3 = '1' then
+        elsif d_val_d3 = '1' then
           if i < to_integer(VLC_size_d) then
             word_reg(to_integer(word_idx(i))) <= VLC_d(to_integer(vlx_idx(i)));
           elsif i < VLC_plus_VLI_size then
