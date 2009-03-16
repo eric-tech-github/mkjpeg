@@ -89,7 +89,6 @@ architecture RTL of Huffman is
   signal state             : T_STATE;
   signal rle_buf_sel_s     : std_logic;
   signal word_reg          : unsigned(C_M-1 downto 0);
-  signal word2_reg         : unsigned(C_M-1 downto 0);
   signal bit_ptr           : unsigned(5 downto 0);
   signal num_fifo_wrs      : unsigned(2 downto 0);
   signal VLI_ext           : unsigned(15 downto 0);
@@ -97,6 +96,7 @@ architecture RTL of Huffman is
   signal ready_HFW         : std_logic;
   signal fifo_wbyte        : std_logic_vector(7 downto 0);
   signal fifo_wrt_cnt      : unsigned(2 downto 0);
+  signal fifo_wrt_cnt_d1   : unsigned(2 downto 0);
   signal fifo_wren         : std_logic;
   signal last_block        : std_logic;
   signal image_area_size   : unsigned(33 downto 0);
@@ -130,7 +130,11 @@ architecture RTL of Huffman is
   signal VLI_ext_d         : unsigned(15 downto 0);
   signal VLI_ext_size_d    : unsigned(4 downto 0);
   signal pad_reg           : std_logic;
+  signal pad_reg_d1        : std_logic;
   signal pad_byte          : std_logic_vector(7 downto 0);
+  signal word_reg_d1       : unsigned(C_M-1 downto 0);
+  signal fifo_wren_d1      : std_logic;
+  signal pad_byte_d1       : std_logic_vector(7 downto 0);
   
 -------------------------------------------------------------------------------
 -- Architecture: begin
@@ -196,7 +200,7 @@ begin
         RST                => RST,
         -- HUFFMAN
         data_in            => fifo_wbyte,
-        wren               => fifo_wren,
+        wren               => fifo_wren_d1,
         -- BYTE STUFFER
         buf_sel            => bs_buf_sel,
         rd_req             => bs_rd_req,
@@ -314,6 +318,8 @@ begin
       fifo_wren <= '0';
       ready_HFW <= '0';
       rd_en     <= '0';
+      fifo_wren_d1 <= fifo_wren;
+      fifo_wrt_cnt_d1 <= fifo_wrt_cnt;
       
       if state = IDLE and start_pb = '1' then
         rd_en       <= '1';
@@ -329,23 +335,7 @@ begin
         else
           fifo_wrt_cnt <= fifo_wrt_cnt + 1;
           fifo_wren    <= '1';
-          case fifo_wrt_cnt is 
-            when "000" =>
-              fifo_wbyte <= std_logic_vector(word_reg(C_M-1 downto C_M-8));
-            when "001" =>
-              fifo_wbyte <= std_logic_vector(word_reg(C_M-8-1 downto C_M-16));
-            when "010" =>
-              fifo_wbyte <= std_logic_vector(word_reg(C_M-16-1 downto C_M-24));  
-            when "011" =>
-              fifo_wbyte <= std_logic_vector(word_reg(C_M-24-1 downto C_M-32)); 
-            when others =>
-              fifo_wbyte <= (others => '0');
-          end case;
-          
-          if pad_reg = '1' then
-            fifo_wbyte <= pad_byte;
-          end if;
-          
+
           -- last byte write
           if fifo_wrt_cnt + 1 = num_fifo_wrs then
             ready_HFW    <= '1';
@@ -353,6 +343,22 @@ begin
             rd_en        <= '1' and not rle_fifo_empty;
           end if;
         end if;
+      end if;
+      
+      case fifo_wrt_cnt_d1 is 
+        when "000" =>
+          fifo_wbyte <= std_logic_vector(word_reg_d1(C_M-1 downto C_M-8));
+        when "001" =>
+          fifo_wbyte <= std_logic_vector(word_reg_d1(C_M-8-1 downto C_M-16));
+        when "010" =>
+          fifo_wbyte <= std_logic_vector(word_reg_d1(C_M-16-1 downto C_M-24));  
+        when "011" =>
+          fifo_wbyte <= std_logic_vector(word_reg_d1(C_M-24-1 downto C_M-32)); 
+        when others =>
+          fifo_wbyte <= (others => '0');
+      end case;
+      if pad_reg_d1 = '1' then
+        fifo_wbyte <= pad_byte_d1;
       end if;
       
       if ready_HFW = '1' then
@@ -380,11 +386,15 @@ begin
       VLC_size_d        <= (others => '0');
       VLI_ext_d         <= (others => '0');
       VLI_ext_size_d    <= (others => '0');
-      word2_reg         <= (others => '0');
+      word_reg_d1       <= (others => '0');
+      pad_byte_d1       <= (others => '0');
     elsif CLK'event and CLK = '1' then
       ready_pb   <= '0';
       pad_reg    <= '0';
-      word2_reg  <= word_reg;
+      
+      word_reg_d1    <= word_reg;
+      pad_byte_d1    <= pad_byte;
+      pad_reg_d1     <= pad_reg;
       
       VLC_plus_VLI_size <= resize(VLC_size,5) + resize(VLI_ext_size,5);
       VLC_d             <= VLC;
@@ -414,7 +424,7 @@ begin
           end if;
         elsif ready_HFW = '1' then
           -- shift word reg left to skip bytes already written to FIFO
-          word_reg <= shift_left(word2_reg, to_integer(num_fifo_wrs & "000"));
+          word_reg <= shift_left(word_reg, to_integer(num_fifo_wrs & "000"));
         end if;
       end loop;
         
