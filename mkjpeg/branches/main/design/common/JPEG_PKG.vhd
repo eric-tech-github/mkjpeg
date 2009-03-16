@@ -28,7 +28,7 @@ package JPEG_PKG is
 
   constant C_HDR_SIZE  : integer      := 338;
   
-  constant C_MAX_LINE_WIDTH : integer := 640;
+  constant C_MAX_LINE_WIDTH : integer := 1280;
     
   type T_SM_SETTINGS is record
     x_cnt               : unsigned(15 downto 0);

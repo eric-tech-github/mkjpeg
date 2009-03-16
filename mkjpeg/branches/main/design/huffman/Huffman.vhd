@@ -89,6 +89,7 @@ architecture RTL of Huffman is
   signal state             : T_STATE;
   signal rle_buf_sel_s     : std_logic;
   signal word_reg          : unsigned(C_M-1 downto 0);
+  signal word2_reg         : unsigned(C_M-1 downto 0);
   signal bit_ptr           : unsigned(5 downto 0);
   signal num_fifo_wrs      : unsigned(2 downto 0);
   signal VLI_ext           : unsigned(15 downto 0);
@@ -128,6 +129,8 @@ architecture RTL of Huffman is
   signal VLC_size_d        : unsigned(4 downto 0);
   signal VLI_ext_d         : unsigned(15 downto 0);
   signal VLI_ext_size_d    : unsigned(4 downto 0);
+  signal pad_reg           : std_logic;
+  signal pad_byte          : std_logic_vector(7 downto 0);
   
 -------------------------------------------------------------------------------
 -- Architecture: begin
@@ -339,6 +342,10 @@ begin
               fifo_wbyte <= (others => '0');
           end case;
           
+          if pad_reg = '1' then
+            fifo_wbyte <= pad_byte;
+          end if;
+          
           -- last byte write
           if fifo_wrt_cnt + 1 = num_fifo_wrs then
             ready_HFW    <= '1';
@@ -373,8 +380,11 @@ begin
       VLC_size_d        <= (others => '0');
       VLI_ext_d         <= (others => '0');
       VLI_ext_size_d    <= (others => '0');
+      word2_reg         <= (others => '0');
     elsif CLK'event and CLK = '1' then
-      ready_pb  <= '0';
+      ready_pb   <= '0';
+      pad_reg    <= '0';
+      word2_reg  <= word_reg;
       
       VLC_plus_VLI_size <= resize(VLC_size,5) + resize(VLI_ext_size,5);
       VLC_d             <= VLC;
@@ -402,6 +412,9 @@ begin
           elsif i < VLC_plus_VLI_size then
             word_reg(to_integer(word_idx(i))) <= VLI_ext_d(to_integer(vlx_idx(i)));
           end if;
+        elsif ready_HFW = '1' then
+          -- shift word reg left to skip bytes already written to FIFO
+          word_reg <= shift_left(word2_reg, to_integer(num_fifo_wrs & "000"));
         end if;
       end loop;
         
@@ -423,7 +436,7 @@ begin
           -- HandleFifoWrites completed
           elsif ready_HFW = '1' then
             -- shift word reg left to skip bytes already written to FIFO
-            word_reg <= shift_left(word_reg, to_integer(num_fifo_wrs & "000"));
+            --word_reg <= shift_left(word_reg, to_integer(num_fifo_wrs & "000"));
             -- adjust bit pointer after some bytes were written to FIFO
             -- modulo 8 operation
             bit_ptr <= bit_ptr - (num_fifo_wrs & "000"); 
@@ -433,7 +446,7 @@ begin
             if rle_fifo_empty = '1' then
               -- end of segment
               if bit_ptr - (num_fifo_wrs & "000") /= 0 and last_block = '1' then
-                state <= PAD;  
+                state <= PAD;
               else
                 ready_pb <= '1';
                 state    <= IDLE;
@@ -444,15 +457,22 @@ begin
         -- end of segment which requires bit padding
         when PAD =>
           if HFW_running = '0' then
-            -- 1's bit padding to integer number of bytes
-            --word_reg(C_M-1-to_integer(bit_ptr) downto 
-            --         C_M-to_integer(bit_ptr)-8) <= (others => '1');
+            -- 1's bit padding to integer number of bytes            
+            --for i in 0 to C_M-1 loop        
+            --  if i < 8 then
+            --     word_reg(C_M-1-to_integer(bit_ptr)-i) <= '1';
+            --  end if;
+            --end loop;
             
-            for i in 0 to C_M-1 loop        
-              if i < 8 then
-                 word_reg(C_M-1-to_integer(bit_ptr)-i) <= '1';
+            for i in 0 to 7 loop
+              if i < bit_ptr then
+                pad_byte(7-i) <= word_reg(C_M-1-i);
+              else
+                pad_byte(7-i) <= '1';
               end if;
             end loop;
+            
+            pad_reg <= '1';
                      
             bit_ptr <= to_unsigned(8, bit_ptr'length);         
 
@@ -460,7 +480,8 @@ begin
             HFW_running <= '1';
          elsif ready_HFW = '1' then
            bit_ptr      <= (others => '0');
-           HFW_running <= '0';
+           HFW_running  <= '0';
+           pad_reg      <= '0';
            
            ready_pb <= '1';
            state <= IDLE;
