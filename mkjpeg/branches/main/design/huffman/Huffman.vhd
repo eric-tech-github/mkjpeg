@@ -86,7 +86,7 @@ architecture RTL of Huffman is
 
   signal state             : T_STATE;
   signal rle_buf_sel_s     : std_logic;
-  signal read_cnt          : unsigned(5 downto 0);
+  signal first_rle_word    : std_logic;
   signal VLC_VLI_sel       : std_logic;
   signal word_reg          : unsigned(C_M-1 downto 0);
   signal bit_ptr           : unsigned(4 downto 0);
@@ -215,7 +215,7 @@ begin
       VLC_size <= (others => '0');
       VLC      <= (others => '0');
     elsif CLK'event and CLK = '1' then
-      if read_cnt = 0 then
+      if first_rle_word = '1' then
         VLC_size <= unsigned('0' & VLC_DC_size);
         VLC      <= resize(VLC_DC, VLC'length);
       else
@@ -336,7 +336,7 @@ begin
     if RST = '1' then
       rd_en        <= '0';
       ready_pb     <= '0';
-      read_cnt     <= (others => '0');
+      first_rle_word <= '0';
       VLC_VLI_sel  <= '0';
       state        <= IDLE;
       word_reg     <= (others => '0');
@@ -352,7 +352,7 @@ begin
       
         when IDLE =>
           if start_pb = '1' then
-            read_cnt    <= (others => '0');
+            first_rle_word <= '1';
             VLC_VLI_sel <= '0';
             state       <= RUN_VLC;
             rd_en       <= '1';
@@ -360,8 +360,8 @@ begin
         
         when RUN_VLC =>
           -- data valid DC or data valid AC
-          if (d_val_d2 = '1' and read_cnt = 0) or 
-             (d_val = '1' and read_cnt /= 0) then
+          if (d_val_d2 = '1' and first_rle_word = '1') or 
+             (d_val = '1' and first_rle_word = '0') then
             for i in 0 to C_M-1 loop
               if i < to_integer(VLC_size) then
                 word_reg(C_M-1-to_integer(bit_ptr)-i) <= VLC(to_integer(VLC_size)-1-i);
@@ -422,10 +422,10 @@ begin
                 state    <= IDLE;
               end if;
             else
-              rd_en       <= '1';
-              read_cnt    <= read_cnt + 1;
-              VLC_VLI_sel <= '0';
-              state    <= RUN_VLC;
+              rd_en           <= '1';
+              first_rle_word  <= '0';
+              VLC_VLI_sel     <= '0';
+              state          <= RUN_VLC;
             end if;
           end if;
           

@@ -67,14 +67,28 @@ architecture RTL of DCT2D is
   signal dataready_2_reg : STD_LOGIC;  
   signal even_not_odd    : std_logic;
   signal even_not_odd_d1 : std_logic;
+  signal even_not_odd_d2 : std_logic;
+  signal even_not_odd_d3 : std_logic;
+  signal even_not_odd_d4 : std_logic;
   signal odv_d0          : std_logic;
   signal odv_d1          : std_logic;
   signal odv_d2          : std_logic;
+  signal odv_d3          : std_logic;
+  signal odv_d4          : std_logic;
+  signal odv_d5          : std_logic;
   signal dcto_1          : std_logic_vector(DA2_W-1 downto 0);
   signal dcto_2          : std_logic_vector(DA2_W-1 downto 0);
+  signal dcto_3          : std_logic_vector(DA2_W-1 downto 0);
+  signal dcto_4          : std_logic_vector(DA2_W-1 downto 0);
+  signal dcto_5          : std_logic_vector(DA2_W-1 downto 0);
   signal romedatao_d1    : T_ROM2DATAO;
   signal romodatao_d1    : T_ROM2DATAO;
-  
+  signal romedatao_d2    : T_ROM2DATAO;
+  signal romodatao_d2    : T_ROM2DATAO;
+  signal romedatao_d3    : T_ROM2DATAO;
+  signal romodatao_d3    : T_ROM2DATAO;
+  signal romedatao_d4    : T_ROM2DATAO;
+  signal romodatao_d4    : T_ROM2DATAO;
 begin
 
   ramraddro_sg:
@@ -96,21 +110,14 @@ begin
       row_reg              <= (others => '0');
       latchbuf_reg         <= (others => (others => '0')); 
       databuf_reg          <= (others => (others => '0'));
-      dcto_1               <= (others => '0');
-      dcto_2               <= (others => '0');
       odv_d0               <= '0';
-      odv_d1               <= '0';
-      odv_d2               <= '0';
       colr_reg             <= (others => '0');
       rowr_reg             <= (others => '0'); 
       dataready_2_reg      <= '0';
-      even_not_odd         <= '0';
-      even_not_odd_d1      <= '0';
     elsif clk='1' and clk'event then
       stage2_reg    <= '0';
       odv_d0        <= '0';
       datareadyack  <= '0';
-
       dataready_2_reg <= dataready;
       
       ----------------------------------
@@ -190,55 +197,114 @@ begin
       end if;
       ----------------------------------
       
+      
+    end if;
+  end process;
+  
+  p_data_pipe : process(CLK, RST)
+  begin
+    if RST = '1' then
+      even_not_odd         <= '0';
+      even_not_odd_d1      <= '0';
+      even_not_odd_d2      <= '0';
+      even_not_odd_d3      <= '0';
+      even_not_odd_d4      <= '0';
+      odv_d1               <= '0';
+      odv_d2               <= '0';
+      odv_d3               <= '0';
+      odv_d4               <= '0';
+      odv_d5               <= '0';
+      dcto_1               <= (others => '0');
+      dcto_2               <= (others => '0');
+      dcto_3               <= (others => '0');
+      dcto_4               <= (others => '0');
+      dcto_5               <= (others => '0');
+    elsif CLK'event and CLK = '1' then
       even_not_odd    <= stage2_cnt_reg(0);
       even_not_odd_d1 <= even_not_odd;
+      even_not_odd_d2 <= even_not_odd_d1;
+      even_not_odd_d3 <= even_not_odd_d2;
+      even_not_odd_d4 <= even_not_odd_d3;
       odv_d1          <= odv_d0;
       odv_d2          <= odv_d1;
+      odv_d3          <= odv_d2;
+      odv_d4          <= odv_d3;
+      odv_d5          <= odv_d4;
       
       if even_not_odd = '0' then
         dcto_1 <= STD_LOGIC_VECTOR(RESIZE
           (RESIZE(SIGNED(romedatao(0)),DA2_W) + 
           (RESIZE(SIGNED(romedatao(1)),DA2_W-1) & '0') +
-          (RESIZE(SIGNED(romedatao(2)),DA2_W-2) & "00") + 
-          (RESIZE(SIGNED(romedatao(3)),DA2_W-3) & "000") +
-          (RESIZE(SIGNED(romedatao(4)),DA2_W-4) & "0000") +
-          (RESIZE(SIGNED(romedatao(5)),DA2_W-5) & "00000"),        
+          (RESIZE(SIGNED(romedatao(2)),DA2_W-2) & "00"),
           DA2_W));
       else
         dcto_1 <= STD_LOGIC_VECTOR(RESIZE
           (RESIZE(SIGNED(romodatao(0)),DA2_W) + 
           (RESIZE(SIGNED(romodatao(1)),DA2_W-1) & '0') +
-          (RESIZE(SIGNED(romodatao(2)),DA2_W-2) & "00") + 
-          (RESIZE(SIGNED(romodatao(3)),DA2_W-3) & "000") +
-          (RESIZE(SIGNED(romodatao(4)),DA2_W-4) & "0000") +
-          (RESIZE(SIGNED(romodatao(5)),DA2_W-5) & "00000"),
-          DA2_W)); 
+          (RESIZE(SIGNED(romodatao(2)),DA2_W-2) & "00"),
+          DA2_W));
       end if;
       
       if even_not_odd_d1 = '0' then
         dcto_2 <= STD_LOGIC_VECTOR(RESIZE
           (signed(dcto_1) + 
-          (RESIZE(SIGNED(romedatao_d1(6)),DA2_W-6) & "000000") + 
-          (RESIZE(SIGNED(romedatao_d1(7)),DA2_W-7) & "0000000") +
-          (RESIZE(SIGNED(romedatao_d1(8)),DA2_W-8) & "00000000") +
-          (RESIZE(SIGNED(romedatao_d1(9)),DA2_W-9) & "000000000") -
-          (RESIZE(SIGNED(romedatao_d1(10)),DA2_W-10) & "0000000000"),          
+          (RESIZE(SIGNED(romedatao_d1(3)),DA2_W-3) & "000") +
+          (RESIZE(SIGNED(romedatao_d1(4)),DA2_W-4) & "0000"),
           DA2_W));
       else
         dcto_2 <= STD_LOGIC_VECTOR(RESIZE
           (signed(dcto_1) + 
-          (RESIZE(SIGNED(romodatao_d1(6)),DA2_W-6) & "000000") + 
-          (RESIZE(SIGNED(romodatao_d1(7)),DA2_W-7) & "0000000") +
-          (RESIZE(SIGNED(romodatao_d1(8)),DA2_W-8) & "00000000") +
-          (RESIZE(SIGNED(romodatao_d1(9)),DA2_W-9) & "000000000") -
-          (RESIZE(SIGNED(romodatao_d1(10)),DA2_W-10) & "0000000000"),          
+          (RESIZE(SIGNED(romodatao_d1(3)),DA2_W-3) & "000") +
+          (RESIZE(SIGNED(romodatao_d1(4)),DA2_W-4) & "0000"),
+          DA2_W)); 
+      end if;
+      
+      if even_not_odd_d2 = '0' then
+        dcto_3 <= STD_LOGIC_VECTOR(RESIZE
+          (signed(dcto_2) + 
+          (RESIZE(SIGNED(romedatao_d2(5)),DA2_W-5) & "00000") +
+          (RESIZE(SIGNED(romedatao_d2(6)),DA2_W-6) & "000000"),
+          DA2_W));
+      else
+        dcto_3 <= STD_LOGIC_VECTOR(RESIZE
+          (signed(dcto_2) + 
+          (RESIZE(SIGNED(romodatao_d2(5)),DA2_W-5) & "00000") +
+          (RESIZE(SIGNED(romodatao_d2(6)),DA2_W-6) & "000000"),
+          DA2_W)); 
+      end if;
+      
+      if even_not_odd_d3 = '0' then
+        dcto_4 <= STD_LOGIC_VECTOR(RESIZE
+          (signed(dcto_3) +
+          (RESIZE(SIGNED(romedatao_d3(7)),DA2_W-7) & "0000000") +
+          (RESIZE(SIGNED(romedatao_d3(8)),DA2_W-8) & "00000000"),
+          DA2_W));
+      else
+        dcto_4 <= STD_LOGIC_VECTOR(RESIZE
+          (signed(dcto_3) + 
+          (RESIZE(SIGNED(romodatao_d3(7)),DA2_W-7) & "0000000") +
+          (RESIZE(SIGNED(romodatao_d3(8)),DA2_W-8) & "00000000"),
+          DA2_W)); 
+      end if;
+      
+      if even_not_odd_d4 = '0' then
+        dcto_5 <= STD_LOGIC_VECTOR(RESIZE
+          (signed(dcto_4) +
+          (RESIZE(SIGNED(romedatao_d4(9)),DA2_W-9) & "000000000") -
+          (RESIZE(SIGNED(romedatao_d4(10)),DA2_W-10) & "0000000000"),
+          DA2_W));
+      else
+        dcto_5 <= STD_LOGIC_VECTOR(RESIZE
+          (signed(dcto_4) + 
+          (RESIZE(SIGNED(romodatao_d4(9)),DA2_W-9) & "000000000") -
+          (RESIZE(SIGNED(romodatao_d4(10)),DA2_W-10) & "0000000000"),
           DA2_W)); 
       end if;
     end if;
   end process;
   
-  dcto <= dcto_2(DA2_W-1 downto 12);
-  odv  <= odv_d2;
+  dcto <= dcto_5(DA2_W-1 downto 12);
+  odv  <= odv_d5;
   
   p_romaddr : process(CLK, RST)
   begin
@@ -263,14 +329,26 @@ begin
     end if;
   end process;
 
-  p_romdatao_d1 : process(CLK, RST)
+  p_romdatao_dly : process(CLK, RST)
   begin
     if RST = '1' then
-      romedatao_d1    <= (others => (others => '0'));
+      romedatao_d1    <= (others => (others => '0'));       
       romodatao_d1    <= (others => (others => '0'));
+      romedatao_d2    <= (others => (others => '0'));       
+      romodatao_d2    <= (others => (others => '0'));
+      romedatao_d3    <= (others => (others => '0'));       
+      romodatao_d3    <= (others => (others => '0'));
+      romedatao_d4    <= (others => (others => '0'));       
+      romodatao_d4    <= (others => (others => '0'));
     elsif CLK'event and CLK = '1' then
       romedatao_d1   <= romedatao;
       romodatao_d1   <= romodatao;
+      romedatao_d2   <= romedatao_d1;
+      romodatao_d2   <= romodatao_d1;
+      romedatao_d3   <= romedatao_d2;
+      romodatao_d3   <= romodatao_d2;
+      romedatao_d4   <= romedatao_d3;
+      romodatao_d4   <= romodatao_d3;
     end if;
   end process;
 	
