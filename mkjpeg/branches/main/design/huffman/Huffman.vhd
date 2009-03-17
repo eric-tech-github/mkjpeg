@@ -133,9 +133,9 @@ begin
   p_latch_fifo : process(CLK, RST)
   begin
     if RST = '1' then
-      runlength_r <= runlength;
-      VLI_size_r  <= VLI_size; 
-      VLI_r       <= VLI;  
+      runlength_r <= (others => '0');
+      VLI_size_r  <= (others => '0');
+      VLI_r       <= (others => '0');
     elsif CLK'event and CLK = '1' then
       if d_val = '1' then
         runlength_r <= runlength;

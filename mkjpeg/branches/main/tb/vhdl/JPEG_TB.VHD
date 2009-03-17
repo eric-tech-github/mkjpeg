@@ -39,9 +39,13 @@ end JPEG_TB;
 --**************************************************************************--
 
 architecture TB of JPEG_TB is
+  
+  type char_file is file of character;
 
   file f_capture           : text;
-  constant CAPTURE_ORAM : string := "OUT_RAM.txt";
+  file f_capture_bin       : char_file;
+  constant CAPTURE_ORAM    : string := "OUT_RAM.txt";
+  constant CAPTURE_BIN     : string := "test_out.jpg";
 
   signal CLK               : STD_LOGIC;
   signal RST               : STD_LOGIC;
@@ -172,9 +176,10 @@ begin
   
   p_capture : process
     variable fLine           : line;
+    variable fLine_bin       : line;
   begin
     file_open(f_capture, CAPTURE_ORAM, write_mode);
-
+    file_open(f_capture_bin, CAPTURE_BIN, write_mode);
     
     while sim_done /= '1' loop
       wait until rising_edge(CLK);
@@ -183,11 +188,16 @@ begin
         hwrite(fLine, ram_byte);
         write(fLine, string'(" "));
         
+        write(f_capture_bin, CHARACTER'VAL(to_integer(unsigned(ram_byte))));
+        
       end if;
     
     end loop;
     writeline(f_capture, fLine);
+    --writeline(f_capture_bin, fLine_bin);
+    
     file_close(f_capture);
+    file_close(f_capture_bin);
   
     wait;  
   end process;
