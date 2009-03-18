@@ -92,7 +92,6 @@ architecture RTL of Huffman is
   signal num_fifo_wrs      : unsigned(1 downto 0);
   signal VLI_ext           : unsigned(15 downto 0);
   signal VLI_ext_size      : unsigned(4 downto 0);
-  signal start_HFW         : std_logic;
   signal ready_HFW         : std_logic;
   signal fifo_wbyte        : std_logic_vector(7 downto 0);
   signal fifo_wrt_cnt      : unsigned(1 downto 0);
@@ -120,6 +119,8 @@ architecture RTL of Huffman is
   signal VLI_size_r        : std_logic_vector(3 downto 0);
   signal VLI_r             : std_logic_vector(11 downto 0);
   signal rd_en_s           : std_logic;
+  signal pad_byte          : std_logic_vector(7 downto 0);
+  signal pad_reg           : std_logic;
   
 -------------------------------------------------------------------------------
 -- Architecture: begin
@@ -295,35 +296,51 @@ begin
       fifo_wrt_cnt <= (others => '0');
       fifo_wren    <= '0';
       fifo_wbyte   <= (others => '0');
+      rd_en_s      <= '0';
     elsif CLK'event and CLK = '1' then
       fifo_wren <= '0';
       ready_HFW <= '0';
+      rd_en_s   <= '0';
+      
+      if start_pb = '1' then
+        rd_en_s     <= '1';
+      end if;
     
       if HFW_running = '1' and ready_HFW = '0' then
         -- there is no at least one integer byte to write this time
         if num_fifo_wrs = 0 then
           ready_HFW    <= '1';
+          if state = RUN_VLI then
+            rd_en_s      <= '1';
+          end if;
         -- single byte write to FIFO
         else
           fifo_wrt_cnt <= fifo_wrt_cnt + 1;
           fifo_wren    <= '1';
-          case fifo_wrt_cnt is 
-            when "00" =>
-              fifo_wbyte <= std_logic_vector(word_reg(C_M-1 downto C_M-8));
-            when "01" =>
-              fifo_wbyte <= std_logic_vector(word_reg(C_M-8-1 downto C_M-16));            
-            when others =>
-              fifo_wbyte <= (others => '0');
-          end case;
-          
           -- last byte write
           if fifo_wrt_cnt + 1 = num_fifo_wrs then
             ready_HFW    <= '1';
+            if state = RUN_VLI then
+              rd_en_s      <= '1';
+            end if;
             fifo_wrt_cnt <= (others => '0');
           end if;
         end if;
-      
       end if;
+      
+      case fifo_wrt_cnt is 
+        when "00" =>
+          fifo_wbyte <= std_logic_vector(word_reg(C_M-1 downto C_M-8));
+        when "01" =>
+          fifo_wbyte <= std_logic_vector(word_reg(C_M-8-1 downto C_M-16));            
+        when others =>
+          fifo_wbyte <= (others => '0');
+      end case;
+      if pad_reg = '1' then
+        fifo_wbyte <= pad_byte;
+      end if;
+
+          
     end if;
   end process;
   
@@ -336,17 +353,15 @@ begin
   p_vlp : process(CLK, RST)
   begin
     if RST = '1' then
-      rd_en_s      <= '0';
       ready_pb     <= '0';
       first_rle_word <= '0';
       state        <= IDLE;
       word_reg     <= (others => '0');
       bit_ptr      <= (others => '0');
-      start_HFW    <= '0';
       HFW_running  <= '0';
+      pad_reg      <= '0';
+      pad_byte     <= (others => '0');
     elsif CLK'event and CLK = '1' then
-      rd_en_s   <= '0';
-      start_HFW <= '0';
       ready_pb  <= '0';
     
       case state is
@@ -355,13 +370,12 @@ begin
           if start_pb = '1' then
             first_rle_word <= '1';
             state       <= RUN_VLC;
-            rd_en_s     <= '1';
           end if;
         
         when RUN_VLC =>
           -- data valid DC or data valid AC
           if (d_val_d2 = '1' and first_rle_word = '1') or 
-             (vlc_vld = '1' and first_rle_word = '0') then
+             (d_val = '1' and first_rle_word = '0') then
             for i in 0 to C_M-1 loop
               if i < to_integer(VLC_size) then
                 word_reg(C_M-1-to_integer(bit_ptr)-i) <= VLC(to_integer(VLC_size)-1-i);
@@ -370,16 +384,16 @@ begin
             bit_ptr <= bit_ptr + resize(VLC_size,bit_ptr'length);
             
             -- HandleFifoWrites
-            start_HFW <= '1';
             HFW_running  <= '1';
           -- HandleFifoWrites completed
-          elsif ready_HFW = '1' then
+          elsif HFW_running = '1' and 
+                (num_fifo_wrs = 0 or fifo_wrt_cnt + 1 = num_fifo_wrs) then
             -- shift word reg left to skip bytes already written to FIFO
             word_reg <= shift_left(word_reg, to_integer(num_fifo_wrs & "000"));
             -- adjust bit pointer after some bytes were written to FIFO
             -- modulo 8 operation
             bit_ptr <= bit_ptr - (num_fifo_wrs & "000"); 
-            HFW_running <= '0';
+            HFW_running     <= '0';
             first_rle_word  <= '0';
             state           <= RUN_VLI;
           end if;
@@ -397,10 +411,10 @@ begin
             bit_ptr <= bit_ptr + resize(VLI_ext_size,bit_ptr'length);
             
             -- HandleFifoWrites
-            start_HFW <= '1';
             HFW_running <= '1';
           -- HandleFifoWrites completed
-          elsif ready_HFW = '1' then
+          elsif HFW_running = '1' and 
+                (num_fifo_wrs = 0 or fifo_wrt_cnt + 1 = num_fifo_wrs) then
             -- shift word reg left to skip bytes already written to FIFO
             word_reg <= shift_left(word_reg, to_integer(num_fifo_wrs & "000"));
             -- adjust bit pointer after some bytes were written to FIFO
@@ -418,7 +432,6 @@ begin
                 state    <= IDLE;
               end if;
             else
-              rd_en_s        <= '1';
               state          <= RUN_VLC;
             end if;
           end if;
@@ -427,23 +440,25 @@ begin
         when PAD =>
           if HFW_running = '0' then
             -- 1's bit padding to integer number of bytes
-            --word_reg(C_M-1-to_integer(bit_ptr) downto 
-            --         C_M-to_integer(bit_ptr)-8) <= (others => '1');
-            for i in 0 to C_M-1 loop
-              if i < 8 then
-                word_reg(C_M-1-to_integer(bit_ptr)-i) <= '1';
+            for i in 0 to 7 loop
+              if i < bit_ptr then
+                pad_byte(7-i) <= word_reg(C_M-1-i);
+              else
+                pad_byte(7-i) <= '1';
               end if;
             end loop;
+            pad_reg <= '1';
             
             bit_ptr <= to_unsigned(8, bit_ptr'length);         
 
             -- HandleFifoWrites
-            start_HFW <= '1';
             HFW_running <= '1';
-         elsif ready_HFW = '1' then
+         elsif HFW_running = '1' and 
+                (num_fifo_wrs = 0 or fifo_wrt_cnt + 1 = num_fifo_wrs) then
            bit_ptr      <= (others => '0');
-           HFW_running <= '0';
-           
+           HFW_running  <= '0';
+           pad_reg      <= '0';
+
            ready_pb <= '1';
            state <= IDLE;
          end if;

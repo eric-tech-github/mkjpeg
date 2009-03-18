@@ -129,7 +129,7 @@ begin
   p_fifo_almost_full : process(CLK, RST)
   begin
     if RST = '1' then
-      fifo_almost_full   <= '0';
+      fifo_almost_full   <= '1';
       last_idx           <= (others => '0');
     elsif CLK'event and CLK = '1' then
       if img_size_x = (img_size_x'range => '0') then
@@ -138,10 +138,12 @@ begin
         last_idx <= unsigned(img_size_x(15 downto 3))-1;
       end if;      
     
-      if unsigned(fifo_count(to_integer(last_idx))) > to_unsigned(128-32,8) then
-        fifo_almost_full <= '1';
-      else
-        fifo_almost_full <= '0';
+      if last_idx > 0 then
+        if unsigned(fifo_count(to_integer(last_idx)-4)) > to_unsigned(128-32,8) then
+          fifo_almost_full <= '1';
+        else
+          fifo_almost_full <= '0';
+        end if;
       end if;      
     end if;
   end process;

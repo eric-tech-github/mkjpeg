@@ -61,9 +61,9 @@ architecture rtl of quantizer is
   signal round_s       : STD_LOGIC;
   signal di_d1         : std_logic_vector(SIZE_C-1 downto 0);
   
-  signal pipeline_reg  : STD_LOGIC_VECTOR(SIZE_C+INTERN_PIPE_C+2-1 downto 0);
+  signal pipeline_reg  : STD_LOGIC_VECTOR(4 downto 0);
   signal sign_bit_pipe : std_logic_vector(SIZE_C+INTERN_PIPE_C+1-1 downto 0);  
-  
+  signal do_rdiv       : STD_LOGIC_VECTOR(SIZE_C-1 downto 0);
 begin
   
   ----------------------------
@@ -89,52 +89,63 @@ begin
   ----------------------------
   -- S_DIVIDER
   ----------------------------
-  U_S_DIVIDER : entity work.s_divider
-    generic map
-    ( 
-       SIZE_C => SIZE_C 
-    )            
-    port map
-    (
-       rst         => rst,
-       clk         => clk,
-       a           => di_d1,
-       d           => divisor_s,
-       
-       q           => do_s,    
-       r           => remainder_s, -- if ever used, needs to be 1T delayed
-       round       => round_s
-    ); 
+  --U_S_DIVIDER : entity work.s_divider
+  --  generic map
+  --  ( 
+  --     SIZE_C => SIZE_C 
+  --  )            
+  --  port map
+  --  (
+  --     rst         => rst,
+  --     clk         => clk,
+  --     a           => di_d1,
+  --     d           => divisor_s,
+  --     
+  --     q           => do_s,    
+  --     r           => remainder_s, -- if ever used, needs to be 1T delayed
+  --     round       => round_s
+  --  ); 
   
   divisor_s(RAMQDATA_W-1 downto 0)      <= romdatao_s;
   divisor_s(SIZE_C-1 downto RAMQDATA_W) <= (others => '0');
   
+  r_divider : entity work.r_divider
+  port map
+  (
+       rst   => rst,
+       clk   => clk,
+       a     => di_d1,     
+       d     => romdatao_s,    
+             
+       q     => do_s
+  ) ;
+  do <= do_s;
   slv_romaddr_s <= STD_LOGIC_VECTOR(romaddr_s);
   
-  ----------------------------
-  -- round to nearest integer
-  ----------------------------
-  process(clk)
-  begin
-    if clk = '1' and clk'event then
-      if rst = '1' then
-        do <= (others => '0');
-      else
-        -- round to nearest integer?
-        if round_s = '1' then
-          -- negative number, subtract 1
-          if sign_bit_pipe(sign_bit_pipe'length-1) = '1' then
-            do <= STD_LOGIC_VECTOR(SIGNED(do_s)-TO_SIGNED(1,SIZE_C));
-          -- positive number, add 1
-          else
-            do <= STD_LOGIC_VECTOR(SIGNED(do_s)+TO_SIGNED(1,SIZE_C));
-          end if;
-        else
-          do <= do_s;
-        end if;
-      end if; 
-    end if;
-  end process;
+  ------------------------------
+  ---- round to nearest integer
+  ------------------------------
+  --process(clk)
+  --begin
+  --  if clk = '1' and clk'event then
+  --    if rst = '1' then
+  --      do <= (others => '0');
+  --    else
+  --      -- round to nearest integer?
+  --      if round_s = '1' then
+  --        -- negative number, subtract 1
+  --        if sign_bit_pipe(sign_bit_pipe'length-1) = '1' then
+  --          do <= STD_LOGIC_VECTOR(SIGNED(do_s)-TO_SIGNED(1,SIZE_C));
+  --        -- positive number, add 1
+  --        else
+  --          do <= STD_LOGIC_VECTOR(SIGNED(do_s)+TO_SIGNED(1,SIZE_C));
+  --        end if;
+  --      else
+  --        do <= do_s;
+  --      end if;
+  --    end if; 
+  --  end if;
+  --end process;
   
   ----------------------------
   -- address incrementer
