@@ -495,7 +495,7 @@ add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/rle_buf_sel
 add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/rle_fifo_empty
 add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_huffman/state
 add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/rle_buf_sel_s
-add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/dc_idx
+add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/first_rle_word
 add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_huffman/word_reg
 add wave -noupdate -format Literal -radix unsigned /jpeg_tb/u_jpegenc/u_huffman/bit_ptr
 add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_huffman/num_fifo_wrs
@@ -528,13 +528,6 @@ add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/bs_buf_sel
 add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/bs_fifo_empty
 add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/bs_rd_req
 add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_huffman/bs_packed_byte
-add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_huffman/vlc_plus_vli_size
-add wave -noupdate -format Literal -radix unsigned /jpeg_tb/u_jpegenc/u_huffman/word_idx
-add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_huffman/vlx_idx
-add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_huffman/vlc_d
-add wave -noupdate -format Literal -radix unsigned /jpeg_tb/u_jpegenc/u_huffman/vlc_size_d
-add wave -noupdate -format Literal -radix unsigned /jpeg_tb/u_jpegenc/u_huffman/vli_ext_size_d
-add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_huffman/vli_ext_d
 add wave -noupdate -divider DoubleFIFO
 add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/u_doublefifo/clk
 add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_huffman/u_doublefifo/rst
@@ -624,9 +617,9 @@ add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_outmux/ram_byte
 add wave -noupdate -format Logic /jpeg_tb/u_jpegenc/u_outmux/ram_wren
 add wave -noupdate -format Literal /jpeg_tb/u_jpegenc/u_outmux/ram_wraddr
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 4} {77531047 ps} 0}
+WaveRestoreCursors {{Cursor 4} {32587245 ps} 0}
 configure wave -namecolwidth 150
-configure wave -valuecolwidth 131
+configure wave -valuecolwidth 55
 configure wave -justifyvalue left
 configure wave -signalnamewidth 1
 configure wave -snapdistance 10
@@ -639,4 +632,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {99606455 ps} {100020713 ps}
+WaveRestoreZoom {32290772 ps} {33398533 ps}

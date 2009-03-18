@@ -87,7 +87,6 @@ architecture RTL of Huffman is
   signal state             : T_STATE;
   signal rle_buf_sel_s     : std_logic;
   signal first_rle_word    : std_logic;
-  signal VLC_VLI_sel       : std_logic;
   signal word_reg          : unsigned(C_M-1 downto 0);
   signal bit_ptr           : unsigned(4 downto 0);
   signal num_fifo_wrs      : unsigned(1 downto 0);
@@ -107,6 +106,7 @@ architecture RTL of Huffman is
   signal VLC_DC            : unsigned(8 downto 0);
   signal VLC_AC_size       : unsigned(4 downto 0);
   signal VLC_AC            : unsigned(15 downto 0);
+  signal vlc_vld           : std_logic;    
   signal d_val_d1          : std_logic;    
   signal d_val_d2          : std_logic;
   signal d_val_d3          : std_logic;
@@ -119,7 +119,8 @@ architecture RTL of Huffman is
   signal runlength_r       : std_logic_vector(3 downto 0);
   signal VLI_size_r        : std_logic_vector(3 downto 0);
   signal VLI_r             : std_logic_vector(11 downto 0);
-        
+  signal rd_en_s           : std_logic;
+  
 -------------------------------------------------------------------------------
 -- Architecture: begin
 -------------------------------------------------------------------------------
@@ -127,18 +128,19 @@ begin
 
   rle_buf_sel <= rle_buf_sel_s;
   
+  rd_en   <= rd_en_s;
+  vlc_vld <= rd_en_s;
+  
   -------------------------------------------------------------------
   -- latch FIFO Q
   -------------------------------------------------------------------
   p_latch_fifo : process(CLK, RST)
   begin
     if RST = '1' then
-      runlength_r <= (others => '0');
       VLI_size_r  <= (others => '0');
       VLI_r       <= (others => '0');
     elsif CLK'event and CLK = '1' then
       if d_val = '1' then
-        runlength_r <= runlength;
         VLI_size_r  <= VLI_size; 
         VLI_r       <= VLI;            
       end if;
@@ -252,8 +254,8 @@ begin
     end if;
   end process;
   
-  VLI_ext      <= unsigned("0000" & VLI_d);
-  VLI_ext_size <= unsigned('0' & VLI_size_d);
+  VLI_ext      <= unsigned("0000" & VLI_d1);
+  VLI_ext_size <= unsigned('0' & VLI_size_d1);
   
   -------------------------------------------------------------------
   -- delay line
@@ -334,17 +336,16 @@ begin
   p_vlp : process(CLK, RST)
   begin
     if RST = '1' then
-      rd_en        <= '0';
+      rd_en_s      <= '0';
       ready_pb     <= '0';
       first_rle_word <= '0';
-      VLC_VLI_sel  <= '0';
       state        <= IDLE;
       word_reg     <= (others => '0');
       bit_ptr      <= (others => '0');
       start_HFW    <= '0';
       HFW_running  <= '0';
     elsif CLK'event and CLK = '1' then
-      rd_en     <= '0';
+      rd_en_s   <= '0';
       start_HFW <= '0';
       ready_pb  <= '0';
     
@@ -353,15 +354,14 @@ begin
         when IDLE =>
           if start_pb = '1' then
             first_rle_word <= '1';
-            VLC_VLI_sel <= '0';
             state       <= RUN_VLC;
-            rd_en       <= '1';
+            rd_en_s     <= '1';
           end if;
         
         when RUN_VLC =>
           -- data valid DC or data valid AC
           if (d_val_d2 = '1' and first_rle_word = '1') or 
-             (d_val = '1' and first_rle_word = '0') then
+             (vlc_vld = '1' and first_rle_word = '0') then
             for i in 0 to C_M-1 loop
               if i < to_integer(VLC_size) then
                 word_reg(C_M-1-to_integer(bit_ptr)-i) <= VLC(to_integer(VLC_size)-1-i);
@@ -380,16 +380,12 @@ begin
             -- modulo 8 operation
             bit_ptr <= bit_ptr - (num_fifo_wrs & "000"); 
             HFW_running <= '0';
-            
-            state       <= RUN_VLI;
-            VLC_VLI_sel <= '1';
+            first_rle_word  <= '0';
+            state           <= RUN_VLI;
           end if;
         
         when RUN_VLI =>
           if HFW_running = '0' then
-            --word_reg(C_M-1-to_integer(bit_ptr) downto 
-            --         C_M-to_integer(bit_ptr)-to_integer(VLI_ext_size)) <= 
-            --  VLI_ext(to_integer(VLI_ext_size)-1 downto 0);
             
             for i in 0 to C_M-1 loop
               if i < to_integer(VLI_ext_size) then
@@ -422,9 +418,7 @@ begin
                 state    <= IDLE;
               end if;
             else
-              rd_en           <= '1';
-              first_rle_word  <= '0';
-              VLC_VLI_sel     <= '0';
+              rd_en_s        <= '1';
               state          <= RUN_VLC;
             end if;
           end if;
