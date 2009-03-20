@@ -75,7 +75,8 @@ architecture RTL of BUF_FIFO is
   constant C_NUM_SUBF     : integer := ((C_MAX_LINE_WIDTH/8));
   
   type T_DATA_ARR is array (0 to C_NUM_SUBF-1) of std_logic_vector(23 downto 0);
-  type T_CNT_ARR  is array (0 to C_NUM_SUBF-1) of std_logic_vector(7 downto 0);
+  type T_CNT_ARR  is array (0 to C_NUM_SUBF-1) of 
+    std_logic_vector(7-C_MEMORY_OPTIMIZED downto 0);
 
   signal fifo_rd          : std_logic_vector(C_NUM_SUBF-1 downto 0);
   signal fifo_wr          : std_logic_vector(C_NUM_SUBF-1 downto 0);
@@ -106,7 +107,7 @@ begin
     generic map
     (
           DATA_WIDTH        => 24,
-          ADDR_WIDTH        => 7
+          ADDR_WIDTH        => 7-C_MEMORY_OPTIMIZED
     )
     port map 
     (        
@@ -139,10 +140,18 @@ begin
       end if;      
     
       if last_idx > 0 then
-        if unsigned(fifo_count(to_integer(last_idx)-4)) > to_unsigned(128-32,8) then
-          fifo_almost_full <= '1';
+        if C_MEMORY_OPTIMIZED = 0 then
+          if unsigned(fifo_count(to_integer(last_idx)-2)) > to_unsigned(128-2*8,8) then
+            fifo_almost_full <= '1';
+          else
+            fifo_almost_full <= '0';
+          end if;
         else
-          fifo_almost_full <= '0';
+           if unsigned(fifo_count(to_integer(last_idx))) = to_unsigned(64,8) then
+            fifo_almost_full <= '1';
+          else
+            fifo_almost_full <= '0';
+          end if;
         end if;
       end if;      
     end if;
