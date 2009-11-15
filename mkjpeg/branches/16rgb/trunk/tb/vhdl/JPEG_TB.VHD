@@ -204,21 +204,22 @@ begin
     wait;  
   end process;
 
+  outif_almost_full <= '0';
   
-  backpressure : process(CLK, RST)
-  begin
-    if RST = '1' then
-      outif_almost_full <= '0';
-      count1 <= (others => '0');
-    elsif CLK'event and CLK = '1' then
-      if count1 = 10000 then
-        count1 <= (others => '0');
-        outif_almost_full <= not outif_almost_full;
-      else
-        count1 <= count1 + 1;
-      end if;
-    end if;
-  end process;
+  --backpressure : process(CLK, RST)
+  --begin
+  --  if RST = '1' then
+  --    outif_almost_full <= '0';
+  --    count1 <= (others => '0');
+  --  elsif CLK'event and CLK = '1' then
+  --    if count1 = 10000 then
+  --      count1 <= (others => '0');
+  --      outif_almost_full <= not outif_almost_full;
+  --    else
+  --      count1 <= count1 + 1;
+  --    end if;
+  --  end if;
+  --end process;
 
 end TB;
 -----------------------------------

@@ -36,7 +36,7 @@ package JPEG_PKG is
 
   -- 0=highest clock per pixel performance
   -- 1=memory used by BUF_FIFO halved, speed performance reduced by circa 18%
-  constant C_MEMORY_OPTIMIZED : integer := 0;
+  constant C_MEMORY_OPTIMIZED : integer := 1;
   
   type T_SM_SETTINGS is record
     x_cnt               : unsigned(15 downto 0);
